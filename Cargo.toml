@@ -1,0 +1,11 @@
+[package]
+name = "staticslot"
+version = "0.1.0"
+authors = ["Stephen M. Coakley <me@stephencoakley.com>"]
+description = "Atomic pointer type for holding static variables."
+documentation = "https://docs.rs/crate/staticslot"
+homepage = "https://github.com/sagebind/staticslot"
+repository = "https://github.com/sagebind/staticslot"
+readme = "README.md"
+keywords = ["static", "global", "singleton"]
+license = "MIT"
