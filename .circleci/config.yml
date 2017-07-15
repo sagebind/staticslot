@@ -1,0 +1,8 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: sagebind/rust-worker:nightly
+    steps:
+      - run: cargo test --all

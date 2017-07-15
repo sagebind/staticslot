@@ -1,6 +1,10 @@
 # staticslot
 Atomic pointer type for holding static variables.
 
+[![CircleCI](https://img.shields.io/circleci/project/github/sagebind/staticslot.svg)](https://circleci.com/gh/sagebind/staticslot)
+[![Documentation](https://docs.rs/staticslot/badge.svg)](https://docs.rs/staticslot)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
 ## Overview
 This crate provides a simple type, `StaticSlot<T>`, which is designed to make it easy to use static variables without much boilerplate or overhead. Usually you do not need any type of global variable, as it can introduce a number of problems into your code with bugs and testability. That being said, in certain applications a global variable is the most practical or efficient solution. This crate is targeted toward these uses.
 

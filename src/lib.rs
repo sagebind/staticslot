@@ -7,6 +7,8 @@
 //! like this:
 //!
 //! ```rust
+//! use staticslot::StaticSlot;
+//!
 //! static MY_SLOT: StaticSlot<i32> = StaticSlot::NULL;
 //! ```
 //!
@@ -14,6 +16,10 @@
 //! state, our slot will start out "empty". To put an `i32` value into the slot we can use the `set()` method:
 //!
 //! ```rust
+//! use staticslot::StaticSlot;
+//!
+//! static MY_SLOT: StaticSlot<i32> = StaticSlot::NULL;
+//!
 //! unsafe {
 //!     MY_SLOT.set(42);
 //! }
@@ -26,7 +32,14 @@
 //! If the value has been set, we can access it later using `get()`:
 //!
 //! ```rust
-//! println!("{}", MY_SLOT.get().unwrap() + 100);
+//! use staticslot::StaticSlot;
+//!
+//! static MY_SLOT: StaticSlot<i32> = StaticSlot::NULL;
+//!
+//! unsafe {
+//!     MY_SLOT.set(42);
+//! }
+//! println!("{}", *MY_SLOT.get().unwrap() + 100);
 //! ```
 //!
 //! Since the slot may be empty, `get()` returns an `Option`. To clean up the memory when you are done, you can make the
@@ -34,14 +47,16 @@
 //! the value in the slot using the `with()` method, which introduces a scope for the value:
 //!
 //! ```rust
-//! assert!(VALUE.get() == None);
+//! use staticslot::StaticSlot;
 //!
+//! static MY_SLOT: StaticSlot<i32> = StaticSlot::NULL;
+//!
+//! assert!(MY_SLOT.get() == None);
 //! MY_SLOT.with(42, || {
 //!     // MY_SLOT contains 42 inside this block.
 //!     assert!(MY_SLOT.get() == Some(&mut 42));
 //! });
-//!
-//! assert!(VALUE.get() == None);
+//! assert!(MY_SLOT.get() == None);
 //! ```
 //!
 //! If there is already a value in the slot, the previous value is restored at the end of the scope. Using `with()`
