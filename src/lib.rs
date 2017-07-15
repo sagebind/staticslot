@@ -69,6 +69,9 @@ use std::sync::atomic::*;
 
 /// A container for a statically owned value.
 ///
+/// A slot can either hold a value or contain NULL. By default, a slot starts out NULL and can be populated with a value
+/// later.
+///
 /// This container is meant to be used in conjunction with `static` variables for more controlled allocation and
 /// de-allocation of shared instances. This type is unsafe because destructors are not guaranteed to be run at all, let
 /// alone in the correct order. You *must* clean up your resources manually using the `drop()` method.
@@ -77,25 +80,42 @@ use std::sync::atomic::*;
 pub struct StaticSlot<T> {
     /// Address to a heap-allocated value.
     address: AtomicUsize,
-    phantom: PhantomData<T>,
+    _phantom: PhantomData<T>,
+}
+
+impl<T: 'static> Default for StaticSlot<T> {
+    /// Create a new NULL static slot.
+    fn default() -> Self {
+        Self::NULL
+    }
 }
 
 impl<T: 'static> StaticSlot<T> {
-    /// A static slot with no value. Useful for static initialization.
+    /// A static slot with its value set to NULL. Useful for static initialization.
     pub const NULL: Self = Self {
         address: ATOMIC_USIZE_INIT,
-        phantom: PhantomData,
+        _phantom: PhantomData,
     };
 
-    /// Create a new static slot with no value.
-    pub fn new() -> Self {
-        Self::NULL
+    /// Create a new static slot that contains the given value.
+    pub fn new(value: T) -> Self {
+        let address = Box::into_raw(Box::new(value)) as usize;
+
+        Self {
+            address: AtomicUsize::new(address),
+            _phantom: PhantomData,
+        }
+    }
+
+    /// Check if the slot contains NULL.
+    pub fn is_null(&self) -> bool {
+        self.address.load(Ordering::SeqCst) == 0
     }
 
     /// Gets a reference to the value in the slot, if set.
     ///
-    /// This method does not perform any initialization. For optimal performance, this peforms a fast check if the
-    /// mantle is initialized and, if so, returns a pointer.
+    /// This method does not perform any initialization. For optimal performance, this performs a fast check if the
+    /// slot is NULL and, if not, returns a reference.
     #[inline]
     pub fn get(&self) -> Option<&mut T> {
         let address = self.address.load(Ordering::SeqCst);
@@ -107,6 +127,14 @@ impl<T: 'static> StaticSlot<T> {
         } else {
             None
         }
+    }
+
+    /// Sets the static slot to a new value. If the slot was already set, the old value is dropped.
+    ///
+    /// This method is marked as unsafe because it can introduce memory leaks if `drop()` or `take()` is not manually
+    /// called before the process exits.
+    pub unsafe fn set(&self, value: T) {
+        self.swap(Some(value));
     }
 
     /// Invokes a closure, with the slot set to a given value.
@@ -128,14 +156,6 @@ impl<T: 'static> StaticSlot<T> {
         }
 
         result
-    }
-
-    /// Sets the static slot to a new value. If the slot was already set, the old value is dropped.
-    ///
-    /// This method is marked as unsafe because it can introduce memory leaks if `drop()` or `take()` is not manually
-    /// called before the process exits.
-    pub unsafe fn set(&self, value: T) {
-        self.swap(Some(value));
     }
 
     /// Takes the value out of the slot if it exists and frees any allocated heap memory.
@@ -179,6 +199,13 @@ unsafe impl<T: Sync> Sync for StaticSlot<T> {}
 mod test {
     #[allow(unused_imports)]
     use super::StaticSlot;
+
+    #[test]
+    fn test_is_small() {
+        use std::mem;
+
+        assert!(mem::size_of::<StaticSlot<u64>>() == mem::size_of::<usize>());
+    }
 
     #[test]
     fn test_basic_usage() {
