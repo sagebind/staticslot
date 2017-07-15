@@ -5,4 +5,5 @@ jobs:
     docker:
       - image: sagebind/rust-worker:nightly
     steps:
+      - checkout
       - run: cargo test --all
