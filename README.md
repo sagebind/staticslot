@@ -2,6 +2,7 @@
 Atomic pointer type for holding static variables.
 
 [![CircleCI](https://img.shields.io/circleci/project/github/sagebind/staticslot.svg)](https://circleci.com/gh/sagebind/staticslot)
+[![Crates.io](https://img.shields.io/crates/v/staticslot.svg)](https://crates.io/crates/staticslot)
 [![Documentation](https://docs.rs/staticslot/badge.svg)](https://docs.rs/staticslot)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
