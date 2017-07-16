@@ -6,6 +6,14 @@ Atomic pointer type for holding static variables.
 [![Documentation](https://docs.rs/staticslot/badge.svg)](https://docs.rs/staticslot)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
+## Installation
+Add this to your `Cargo.toml` file:
+
+```rust
+[dependencies]
+staticslot = "0.2"
+```
+
 ## Overview
 This crate provides a simple type, `StaticSlot<T>`, which is designed to make it easy to use static variables without much boilerplate or overhead. Usually you do not need any type of global variable, as it can introduce a number of problems into your code with bugs and testability. That being said, in certain applications a global variable is the most practical or efficient solution. This crate is targeted toward these uses.
 
