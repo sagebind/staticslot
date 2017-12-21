@@ -62,21 +62,20 @@
 //! If there is already a value in the slot, the previous value is restored at the end of the scope. Using `with()`
 //! guarantees that the memory for the value is cleaned up, and also allows you to nest calls with different values in
 //! the slot.
-#![feature(associated_consts)]
 use std::marker::PhantomData;
 use std::sync::atomic::*;
 
 
 /// A container for a statically owned value.
 ///
-/// A slot can either hold a value or contain NULL. By default, a slot starts out NULL and can be populated with a value
-/// later.
+/// A slot can either hold a value or contain `NULL`. By default, a slot starts out `NULL` and can be populated with a
+/// value later.
 ///
 /// This container is meant to be used in conjunction with `static` variables for more controlled allocation and
 /// de-allocation of shared instances. This type is unsafe because destructors are not guaranteed to be run at all, let
 /// alone in the correct order. You *must* clean up your resources manually using the `drop()` method.
 ///
-/// Behaves kind of like a `RefCell<Option<Box<T>>>` with atomic swapping and manual destruction.
+/// Think of it as an optimized `RefCell<Option<Box<T>>>` with atomic swapping and manual destruction.
 pub struct StaticSlot<T> {
     /// Address to a heap-allocated value.
     address: AtomicUsize,
@@ -84,15 +83,16 @@ pub struct StaticSlot<T> {
 }
 
 impl<T: 'static> Default for StaticSlot<T> {
-    /// Create a new NULL static slot.
+    /// Create a new static slot initialized with `NULL`.
     fn default() -> Self {
         Self::NULL
     }
 }
 
 impl<T: 'static> StaticSlot<T> {
-    /// A static slot with its value set to NULL. Useful for static initialization.
+    /// A static slot with its value set to `NULL`. Useful for static initialization.
     pub const NULL: Self = Self {
+        #[doc(hidden)]
         address: ATOMIC_USIZE_INIT,
         _phantom: PhantomData,
     };
@@ -107,26 +107,53 @@ impl<T: 'static> StaticSlot<T> {
         }
     }
 
-    /// Check if the slot contains NULL.
+    /// Check if the slot contains `NULL`.
+    #[inline]
     pub fn is_null(&self) -> bool {
-        self.address.load(Ordering::SeqCst) == 0
+        self.as_ptr().is_null()
     }
 
     /// Gets a reference to the value in the slot, if set.
     ///
     /// This method does not perform any initialization. For optimal performance, this performs a fast check if the
-    /// slot is NULL and, if not, returns a reference.
+    /// slot is `NULL` and, if not, returns a reference.
     #[inline]
     pub fn get(&self) -> Option<&mut T> {
-        let address = self.address.load(Ordering::SeqCst);
+        let ptr = self.as_mut_ptr();
 
-        if address != 0 {
+        if !ptr.is_null() {
             unsafe {
-                Some(&mut *(address as *mut _))
+                Some(&mut *ptr)
             }
         } else {
             None
         }
+    }
+
+    /// Get a mutable reference to the value in the slot.
+    ///
+    /// If doing a null check every time you call `get()` is unnacceptable, then this unsafe variant will let you bypass
+    /// that. Note that if the slot has not been initialized, the returned reference will be invalid and improper use
+    /// could cause a segmentation fault.
+    #[inline]
+    pub unsafe fn get_unchecked(&self) -> &mut T {
+        &mut *self.as_mut_ptr()
+    }
+
+    /// Returns an unsafe pointer to the contained value.
+    ///
+    /// If the slot is empty, will return a null pointer.
+    #[inline]
+    pub fn as_ptr(&self) -> *const T {
+        self.address.load(Ordering::SeqCst) as *const _
+    }
+
+    /// Returns an unsafe mutable pointer to the contained value.
+    ///
+    /// If the slot is empty, will return a null pointer.
+    #[inline]
+    pub fn as_mut_ptr(&self) -> *mut T {
+        self.address.load(Ordering::SeqCst) as *mut _
     }
 
     /// Sets the static slot to a new value. If the slot was already set, the old value is dropped.
@@ -196,8 +223,8 @@ unsafe impl<T: Send> Send for StaticSlot<T> {}
 unsafe impl<T: Sync> Sync for StaticSlot<T> {}
 
 
-mod test {
-    #[allow(unused_imports)]
+#[cfg(test)]
+mod tests {
     use super::StaticSlot;
 
     #[test]

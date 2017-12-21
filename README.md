@@ -42,20 +42,17 @@ println!("{}", MY_SLOT.get().unwrap() + 100);
 Since the slot may be empty, `get()` returns an `Option`. To clean up the memory when you are done, you can make the slot empty again by calling the `drop()` method. If you want to avoid unsafe code, you can put a dynamic lifetime on the value in the slot using the `with()` method, which introduces a scope for the value:
 
 ```rust
-assert!(VALUE.get() == None);
+assert!(MY_SLOT.get() == None);
 
 MY_SLOT.with(42, || {
     // MY_SLOT contains 42 inside this block.
     assert!(MY_SLOT.get() == Some(&mut 42));
 });
 
-assert!(VALUE.get() == None);
+assert!(MY_SLOT.get() == None);
 ```
 
 If there is already a value in the slot, the previous value is restored at the end of the scope. Using `with()` guarantees that the memory for the value is cleaned up, and also allows you to nest calls with different values in the slot.
-
-## Nightly compiler
-Since the `StaticSlot` type is generic, the only way to initialize it statically is with constant functions, associated constants, or macros. Macros do not seem elegant for this use case, so currently this crate is using associated constants, which is not yet stabilized. Until it is stabilized, `staticslot` requires a nightly compiler to be used.
 
 ## License
 MIT
