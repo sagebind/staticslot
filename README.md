@@ -6,6 +6,8 @@ Atomic pointer type for holding static variables.
 [![Documentation](https://docs.rs/staticslot/badge.svg)](https://docs.rs/staticslot)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
+[Documentation](https://docs.rs/staticslot)
+
 ## Installation
 Add this to your `Cargo.toml` file:
 
@@ -20,39 +22,10 @@ This crate provides a simple type, `StaticSlot<T>`, which is designed to make it
 A static slot is just a nullable pointer to some heap-allocated value with some extra features. We can declare one like this:
 
 ```rust
-static MY_SLOT: StaticSlot<i32> = StaticSlot::NULL;
+static GLOBAL_STRINGS: StaticSlot<Vec<String>> = StaticSlot::NULL;
 ```
 
-Here we're defining a static variable of type `StaticSlot<i32>` and initializing it to `StaticSlot::NULL`. In this state, our slot will start out "empty". To put an `i32` value into the slot we can use the `set()` method:
-
-```rust
-unsafe {
-    MY_SLOT.set(42);
-}
-```
-
-There are two things we can observe from this. First, we can set the value without having `MY_SLOT` be `static mut`. This is because the slot provides atomic, interior mutability for us. Secondly, calling `set()` is unsafe; this is because the compiler cannot guarantee we will free the memory for our `i32` when we are done with it.
-
-If the value has been set, we can access it later using `get()`:
-
-```rust
-println!("{}", MY_SLOT.get().unwrap() + 100);
-```
-
-Since the slot may be empty, `get()` returns an `Option`. To clean up the memory when you are done, you can make the slot empty again by calling the `drop()` method. If you want to avoid unsafe code, you can put a dynamic lifetime on the value in the slot using the `with()` method, which introduces a scope for the value:
-
-```rust
-assert!(MY_SLOT.get() == None);
-
-MY_SLOT.with(42, || {
-    // MY_SLOT contains 42 inside this block.
-    assert!(MY_SLOT.get() == Some(&mut 42));
-});
-
-assert!(MY_SLOT.get() == None);
-```
-
-If there is already a value in the slot, the previous value is restored at the end of the scope. Using `with()` guarantees that the memory for the value is cleaned up, and also allows you to nest calls with different values in the slot.
+Then we can `get()` and `set()` the value throughout our program. In addition, a number of convenience methods are also provided. See the documentation for details about semantics and safety.
 
 ## License
 MIT

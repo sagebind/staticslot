@@ -3,6 +3,8 @@
 //! number of problems into your code with bugs and testability. That being said, in certain applications a global
 //! variable is the most practical or efficient solution. This crate is targeted toward these uses.
 //!
+//! # Usage
+//!
 //! A static slot is just a nullable pointer to some heap-allocated value with some extra features. We can declare one
 //! like this:
 //!
@@ -62,6 +64,35 @@
 //! If there is already a value in the slot, the previous value is restored at the end of the scope. Using `with()`
 //! guarantees that the memory for the value is cleaned up, and also allows you to nest calls with different values in
 //! the slot.
+//!
+//! # Unsized types
+//!
+//! Since `StaticSlot` depends on atomic operations, only `Sized` types can be stored in it, as unsized types would
+//! require double-word atomics, which are not available on most architectures. It is possible to have an atomic unsized
+//! pointer by having a double pointer, but that would harm the performance for the general case.
+//!
+//! If you need an unsized static slot (to hold a trait object, for example), you can simply put a `Box<T>` in the slot
+//! to get the desired semantics. Below is an example of putting `Any` into a static slot.
+//!
+//! ```rust
+//! use staticslot::StaticSlot;
+//! use std::any::Any;
+//! use std::sync::Mutex;
+//!
+//! static ANY: StaticSlot<Mutex<Box<Any + Send>>> = StaticSlot::NULL;
+//!
+//! let value = Mutex::new(Box::new(String::from("hello")) as Box<Any + Send>);
+//!
+//! ANY.with(value, || {
+//!     if let Some(mutex) = ANY.get() {
+//!         if let Some(string) = mutex.lock().unwrap().downcast_ref::<String>() {
+//!             println!("It's a string({}): '{}'", string.len(), string);
+//!         }
+//!     }
+//! });
+//! ```
+//!
+//! This is useful when you need a singleton instance of some trait, but the implementation can vary.
 use std::marker::PhantomData;
 use std::sync::atomic::*;
 
