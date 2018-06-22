@@ -11,16 +11,16 @@
 //! ```rust
 //! use staticslot::StaticSlot;
 //!
-//! static MY_SLOT: StaticSlot<i32> = StaticSlot::NULL;
+//! static MY_SLOT: StaticSlot<i32> = StaticSlot::EMPTY;
 //! ```
 //!
-//! Here we're defining a static variable of type `StaticSlot<i32>` and initializing it to `StaticSlot::NULL`. In this
+//! Here we're defining a static variable of type `StaticSlot<i32>` and initializing it to `StaticSlot::EMPTY`. In this
 //! state, our slot will start out "empty". To put an `i32` value into the slot we can use the `set()` method:
 //!
 //! ```rust
 //! use staticslot::StaticSlot;
 //!
-//! static MY_SLOT: StaticSlot<i32> = StaticSlot::NULL;
+//! static MY_SLOT: StaticSlot<i32> = StaticSlot::EMPTY;
 //!
 //! unsafe {
 //!     MY_SLOT.set(42);
@@ -36,7 +36,7 @@
 //! ```rust
 //! use staticslot::StaticSlot;
 //!
-//! static MY_SLOT: StaticSlot<i32> = StaticSlot::NULL;
+//! static MY_SLOT: StaticSlot<i32> = StaticSlot::EMPTY;
 //!
 //! unsafe {
 //!     MY_SLOT.set(42);
@@ -51,7 +51,7 @@
 //! ```rust
 //! use staticslot::StaticSlot;
 //!
-//! static MY_SLOT: StaticSlot<i32> = StaticSlot::NULL;
+//! static MY_SLOT: StaticSlot<i32> = StaticSlot::EMPTY;
 //!
 //! assert!(MY_SLOT.get() == None);
 //! MY_SLOT.with(42, || {
@@ -79,7 +79,7 @@
 //! use std::any::Any;
 //! use std::sync::Mutex;
 //!
-//! static ANY: StaticSlot<Mutex<Box<Any + Send>>> = StaticSlot::NULL;
+//! static ANY: StaticSlot<Mutex<Box<Any + Send>>> = StaticSlot::EMPTY;
 //!
 //! let value = Mutex::new(Box::new(String::from("hello")) as Box<Any + Send>);
 //!
@@ -93,14 +93,13 @@
 //! ```
 //!
 //! This is useful when you need a singleton instance of some trait, but the implementation can vary.
-use std::marker::PhantomData;
-use std::sync::atomic::*;
-
+use std::ptr;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 /// A container for a statically owned value.
 ///
-/// A slot can either hold a value or contain `NULL`. By default, a slot starts out `NULL` and can be populated with a
-/// value later.
+/// A slot can either be empty or hold a value. By default, a slot starts out empty and can be populated with a value
+/// later.
 ///
 /// This container is meant to be used in conjunction with `static` variables for more controlled allocation and
 /// de-allocation of shared instances. This type is unsafe because destructors are not guaranteed to be run at all, let
@@ -108,46 +107,39 @@ use std::sync::atomic::*;
 ///
 /// Think of it as an optimized `RefCell<Option<Box<T>>>` with atomic swapping and manual destruction.
 pub struct StaticSlot<T> {
-    /// Address to a heap-allocated value.
-    address: AtomicUsize,
-    _phantom: PhantomData<T>,
+    ptr: AtomicPtr<T>,
 }
 
 impl<T: 'static> Default for StaticSlot<T> {
-    /// Create a new static slot initialized with `NULL`.
     fn default() -> Self {
-        Self::NULL
+        Self::EMPTY
+    }
+}
+
+impl<T: 'static> From<T> for StaticSlot<T> {
+    fn from(value: T) -> Self {
+        Self {
+            ptr: AtomicPtr::new(Box::into_raw(Box::new(value))),
+        }
     }
 }
 
 impl<T: 'static> StaticSlot<T> {
-    /// A static slot with its value set to `NULL`. Useful for static initialization.
-    pub const NULL: Self = Self {
-        #[doc(hidden)]
-        address: ATOMIC_USIZE_INIT,
-        _phantom: PhantomData,
+    /// An empty static slot. Useful for static initialization.
+    pub const EMPTY: Self = Self {
+        ptr: AtomicPtr::new(ptr::null_mut()),
     };
 
-    /// Create a new static slot that contains the given value.
-    pub fn new(value: T) -> Self {
-        let address = Box::into_raw(Box::new(value)) as usize;
-
-        Self {
-            address: AtomicUsize::new(address),
-            _phantom: PhantomData,
-        }
-    }
-
-    /// Check if the slot contains `NULL`.
+    /// Check if the slot is empty.
     #[inline]
-    pub fn is_null(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.as_ptr().is_null()
     }
 
     /// Gets a reference to the value in the slot, if set.
     ///
     /// This method does not perform any initialization. For optimal performance, this performs a fast check if the
-    /// slot is `NULL` and, if not, returns a reference.
+    /// slot is empty and, if not, returns a reference.
     #[inline]
     pub fn get(&self) -> Option<&mut T> {
         let ptr = self.as_mut_ptr();
@@ -163,7 +155,7 @@ impl<T: 'static> StaticSlot<T> {
 
     /// Get a mutable reference to the value in the slot.
     ///
-    /// If doing a null check every time you call `get()` is unnacceptable, then this unsafe variant will let you bypass
+    /// If doing a null check every time you call `get()` is unacceptable, then this unsafe variant will let you bypass
     /// that. Note that if the slot has not been initialized, the returned reference will be invalid and improper use
     /// could cause a segmentation fault.
     #[inline]
@@ -176,7 +168,7 @@ impl<T: 'static> StaticSlot<T> {
     /// If the slot is empty, will return a null pointer.
     #[inline]
     pub fn as_ptr(&self) -> *const T {
-        self.address.load(Ordering::SeqCst) as *const _
+        self.ptr.load(Ordering::SeqCst)
     }
 
     /// Returns an unsafe mutable pointer to the contained value.
@@ -184,7 +176,7 @@ impl<T: 'static> StaticSlot<T> {
     /// If the slot is empty, will return a null pointer.
     #[inline]
     pub fn as_mut_ptr(&self) -> *mut T {
-        self.address.load(Ordering::SeqCst) as *mut _
+        self.ptr.load(Ordering::SeqCst)
     }
 
     /// Sets the static slot to a new value. If the slot was already set, the old value is dropped.
@@ -233,17 +225,17 @@ impl<T: 'static> StaticSlot<T> {
     /// Set the current value, returning the old value.
     unsafe fn swap(&self, value: Option<T>) -> Option<T> {
         // If a value is given, put it on the heap and get its address. Otherwise use null.
-        let new_address = match value {
-            Some(v) => Box::into_raw(Box::new(v)) as usize,
-            None => 0,
+        let new_ptr = match value {
+            Some(v) => Box::into_raw(Box::new(v)),
+            None => ptr::null_mut(),
         };
 
         // Swap in the new address and get the old address atomically.
-        let old_address = self.address.swap(new_address, Ordering::SeqCst);
+        let old_ptr = self.ptr.swap(new_ptr, Ordering::SeqCst);
 
         // If the old address was not null, take the value off the heap and return it.
-        if old_address != 0 {
-            Some(*Box::from_raw(old_address as *mut _))
+        if !old_ptr.is_null() {
+            Some(*Box::from_raw(old_ptr))
         } else {
             None
         }
@@ -267,7 +259,7 @@ mod tests {
 
     #[test]
     fn test_basic_usage() {
-        static VALUE: StaticSlot<i32> = StaticSlot::NULL;
+        static VALUE: StaticSlot<i32> = StaticSlot::EMPTY;
 
         assert!(VALUE.get() == None);
         unsafe {
@@ -280,7 +272,7 @@ mod tests {
 
     #[test]
     fn test_with() {
-        static VALUE: StaticSlot<i32> = StaticSlot::NULL;
+        static VALUE: StaticSlot<i32> = StaticSlot::EMPTY;
 
         assert!(VALUE.get() == None);
 
