@@ -1,7 +1,7 @@
 # staticslot
 Atomic pointer type for holding static variables.
 
-[![Shippable](https://img.shields.io/shippable/59f4fe469ce1cc0700911947.svg)](https://app.shippable.com/github/sagebind/staticslot)
+[![Build Status](https://semaphoreci.com/api/v1/sagebind/staticslot/branches/master/badge.svg)](https://semaphoreci.com/sagebind/staticslot)
 [![Crates.io](https://img.shields.io/crates/v/staticslot.svg)](https://crates.io/crates/staticslot)
 [![Documentation](https://docs.rs/staticslot/badge.svg)](https://docs.rs/staticslot)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
