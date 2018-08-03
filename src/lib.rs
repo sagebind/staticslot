@@ -243,7 +243,7 @@ impl<T: 'static> StaticSlot<T> {
 }
 
 unsafe impl<T: Send> Send for StaticSlot<T> {}
-unsafe impl<T: Sync> Sync for StaticSlot<T> {}
+unsafe impl<T: Sync + Send> Sync for StaticSlot<T> {}
 
 
 #[cfg(test)]
