@@ -1,6 +1,8 @@
 # staticslot
 Atomic pointer type for holding static variables.
 
+**Deprecated in favor of [OnceCell](https://github.com/matklad/once_cell), which provides similar constructs in a safe and sound manner.**
+
 [![Build Status](https://semaphoreci.com/api/v1/sagebind/staticslot/branches/master/badge.svg)](https://semaphoreci.com/sagebind/staticslot)
 [![Crates.io](https://img.shields.io/crates/v/staticslot.svg)](https://crates.io/crates/staticslot)
 [![Documentation](https://docs.rs/staticslot/badge.svg)](https://docs.rs/staticslot)
